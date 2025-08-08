@@ -1,29 +1,43 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../../lib/prisma'; // assumes you have a lib/prisma.ts file
+import { NextResponse } from 'next/server';
+import { prisma } from '../../../../lib/prisma';
+import bcrypt from 'bcrypt';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { id, password, name, phonenumber } = req.body;
-
-  if (!id || !password || !name) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
+export async function POST(request: Request) {
   try {
+    const body = await request.json();
+    const { id, password, name, phonenumber } = body;
+
+    if (!id || !password || !name) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Checking if user id already present
+    
+    const existingUser=await prisma.user.findUnique({where: {id}});
+    if(existingUser){
+        return NextResponse.json({ error: 'User ID already exists' }, { status: 400 });
+    }
+
+    //Password hashing
+
+    const hashedPassword=await bcrypt.hash(password,10);
+
+    //User creation
+
     const user = await prisma.user.create({
       data: {
         id,
-        password,
+        password: hashedPassword,
         name,
-        phoneNumber: phonenumber, // matches Prisma schema field
+        phoneNumber: phonenumber,
       },
     });
 
-    res.status(201).json({ message: 'User created', user });
+    return NextResponse.json({ message: 'User created successfully', user }, { status: 201 });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to create user', details: error.message });
+    return NextResponse.json(
+      { error: 'User creation failed', details: error.message },
+      { status: 500 }
+    );
   }
 }

@@ -1,0 +1,16 @@
+[project]
+name = "persona-driven-document-intelligence-engine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.1",
+    "load-dotenv>=0.1.0",
+    "pinecone>=7.3.0",
+    "pymupdf4llm>=0.0.27",
+    "python-multipart>=0.0.20",
+    "ruff>=0.12.8",
+    "sentence-transformers>=5.1.0",
+    "uvicorn>=0.35.0",
+]

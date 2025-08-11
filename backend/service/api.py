@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, Query
+from fastapi import FastAPI, File, HTTPException, UploadFile, Form, Query
 import shutil
 import os
 from typing import List
@@ -14,7 +14,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def upload_pdfs(
     chat_id: str = Form(...),
     files: List[UploadFile] = File(...)
+    
 ):
+    
     try:
         all_chunks = []
         folder_path = os.path.join(UPLOAD_DIR, chat_id)
@@ -24,10 +26,11 @@ async def upload_pdfs(
 
         for file in files:
             file_path = os.path.join(folder_path, file.filename)
+            print(file_path)
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             saved_file_paths.append(file_path)
-
+            print(f"Processing file: {file.filename}, size: {os.path.getsize(file_path)} bytes")
             chunks = extract_chunks(file_path)
             all_chunks.extend(chunks)
         if all_chunks != []:

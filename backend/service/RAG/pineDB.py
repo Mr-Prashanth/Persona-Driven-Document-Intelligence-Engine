@@ -42,10 +42,19 @@ def store_in_pinecone(chunks, chat_id):
 
     index.upsert_records(namespace=chat_id, records=records)
 
-def delete_vectors_by_file(chat_id: str, filename: str):
+def delete_by_file(chat_id: str, filename: str):
     """
     Deletes all vectors from Pinecone where metadata 'chat_id' and 'source' match.
     """
 
     index.delete(filter={"source": {"$eq": filename}}, namespace=chat_id)
 
+def delete_chat(chat_id: str):
+    """
+    Deletes all vectors from Pinecone for the given chat_id (namespace).
+    """
+    try:
+        index.delete(delete_all=True, namespace=chat_id)
+        print(f"All vectors for chat_id '{chat_id}' deleted successfully.")
+    except Exception as e:
+        print(f"Error deleting vectors for chat_id '{chat_id}': {e}")

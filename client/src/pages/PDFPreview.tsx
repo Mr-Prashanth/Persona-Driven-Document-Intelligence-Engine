@@ -1,45 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { FiFileText, FiTrash2, FiEye, FiDownload, FiUpload } from 'react-icons/fi';
 import { ParticleBackground } from '../components/ParticleBackground';
 import { Button } from '../components/ui/button-enhanced';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/use-toast';
-
-interface PDFFile {
-  id: string;
-  name: string;
-  size: number;
-  uploadDate: string;
-  thumbnail?: string;
-  pageCount?: number;
-}
+import { usePDFs } from '../contexts/pdfContext'; // ✅ Context for real files
 
 export const PDFPreview: React.FC = () => {
-  const [files, setFiles] = useState<PDFFile[]>([
-    {
-      id: '1',
-      name: 'Financial_Report_Q4_2024.pdf',
-      size: 2048000,
-      uploadDate: '2024-01-15',
-      pageCount: 24
-    },
-    {
-      id: '2',
-      name: 'Marketing_Strategy_2024.pdf',
-      size: 1536000,
-      uploadDate: '2024-01-15',
-      pageCount: 18
-    },
-    {
-      id: '3',
-      name: 'Research_Paper_Analysis.pdf',
-      size: 3072000,
-      uploadDate: '2024-01-15',
-      pageCount: 42
-    }
-  ]);
-  
+  const { files, setFiles } = usePDFs();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -52,11 +21,8 @@ export const PDFPreview: React.FC = () => {
   };
 
   const removeFile = (id: string) => {
-    setFiles(files.filter(f => f.id !== id));
-    toast({
-      title: "File removed",
-      description: "PDF file has been removed from the preview.",
-    });
+    setFiles(prev => prev.filter(f => f.id !== id));
+    toast({ title: "File removed", description: "PDF file has been removed from the preview." });
   };
 
   const processFiles = () => {
@@ -68,13 +34,10 @@ export const PDFPreview: React.FC = () => {
       });
       return;
     }
-    
-    // Navigate to dashboard with selected files
-    navigate('/dashboard', { state: { previewedFiles: files } });
+    navigate('/dashboard'); // just go back to dashboard to process
   };
 
   const addMoreFiles = () => {
-    // Simulate file upload
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.pdf';
@@ -82,20 +45,18 @@ export const PDFPreview: React.FC = () => {
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement;
       if (target.files) {
-        const newFiles = Array.from(target.files).map((file, index) => ({
-          id: `new_${Date.now()}_${index}`,
-          name: file.name,
-          size: file.size,
-          uploadDate: new Date().toISOString().split('T')[0],
-          pageCount: Math.floor(Math.random() * 50) + 5
-        }));
-        
-        setFiles(prev => [...prev, ...newFiles]);
-        toast({
-          title: "Files added",
-          description: `${newFiles.length} file(s) added to preview.`,
-        });
-      }
+  const newFiles = Array.from(target.files).map((file, index) => ({
+    id: `new_${Date.now()}_${index}`,
+    name: file.name,
+    size: file.size,
+    uploadDate: new Date().toISOString().split('T')[0],
+    pageCount: Math.floor(Math.random() * 50) + 5,
+    file // ✅ keep original File
+  }));
+  setFiles(prev => [...prev, ...newFiles]);
+  toast({ title: "Files added", description: `${newFiles.length} file(s) added to preview.` });
+}
+
     };
     input.click();
   };
@@ -103,7 +64,7 @@ export const PDFPreview: React.FC = () => {
   return (
     <div className="min-h-screen bg-vectra-dark relative overflow-hidden">
       <ParticleBackground />
-      
+
       {/* Navigation */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
@@ -121,20 +82,11 @@ export const PDFPreview: React.FC = () => {
                 {files.length} file{files.length !== 1 ? 's' : ''} selected
               </span>
             </div>
-            
             <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={addMoreFiles}
-                icon={<FiUpload size={16} />}
-              >
+              <Button variant="outline" onClick={addMoreFiles} icon={<FiUpload size={16} />}>
                 Add More
               </Button>
-              <Button 
-                variant="primary" 
-                onClick={processFiles}
-                disabled={files.length === 0}
-              >
+              <Button variant="primary" onClick={processFiles} disabled={files.length === 0}>
                 Process Files
               </Button>
             </div>
@@ -143,17 +95,10 @@ export const PDFPreview: React.FC = () => {
       </motion.nav>
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
         {files.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16"
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16">
             <FiFileText size={64} className="mx-auto text-vectra-text-secondary/50 mb-4" />
-            <h2 className="text-xl font-medium text-vectra-text-primary mb-2">
-              No PDFs Selected
-            </h2>
+            <h2 className="text-xl font-medium text-vectra-text-primary mb-2">No PDFs Selected</h2>
             <p className="text-vectra-text-secondary mb-6">
               Upload PDF files to preview them before processing
             </p>
@@ -172,29 +117,13 @@ export const PDFPreview: React.FC = () => {
                 className="glass rounded-xl p-6 group hover:border-primary/30 transition-colors"
               >
                 {/* File Thumbnail */}
-                <div className="aspect-[3/4] bg-vectra-surface/50 rounded-lg mb-4 flex items-center justify-center border-2 border-dashed border-vectra-border/50">
-                  {file.thumbnail ? (
-                    <img 
-                      src={file.thumbnail} 
-                      alt={`${file.name} preview`}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="text-center">
-                      <FiFileText size={48} className="mx-auto text-vectra-text-secondary/50 mb-2" />
-                      <p className="text-xs text-vectra-text-secondary">
-                        {file.pageCount} pages
-                      </p>
-                    </div>
-                  )}
-                </div>
+                
 
                 {/* File Info */}
                 <div className="space-y-2">
                   <h3 className="font-medium text-vectra-text-primary line-clamp-2" title={file.name}>
                     {file.name}
                   </h3>
-                  
                   <div className="text-xs text-vectra-text-secondary space-y-1">
                     <p>Size: {formatFileSize(file.size)}</p>
                     <p>Uploaded: {new Date(file.uploadDate).toLocaleDateString()}</p>
@@ -204,20 +133,9 @@ export const PDFPreview: React.FC = () => {
                 {/* Actions */}
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-vectra-border/30">
                   <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<FiEye size={14} />}
-                      title="Preview"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<FiDownload size={14} />}
-                      title="Download"
-                    />
+                    <Button variant="ghost" size="sm" icon={<FiEye size={14} />} title="Preview" />
+                    <Button variant="ghost" size="sm" icon={<FiDownload size={14} />} title="Download" />
                   </div>
-                  
                   <Button
                     variant="ghost"
                     size="sm"
@@ -240,10 +158,7 @@ export const PDFPreview: React.FC = () => {
             transition={{ delay: files.length * 0.1 + 0.2 }}
             className="mt-8 glass rounded-xl p-6"
           >
-            <h3 className="text-lg font-medium text-vectra-text-primary mb-4">
-              Processing Summary
-            </h3>
-            
+            <h3 className="text-lg font-medium text-vectra-text-primary mb-4">Processing Summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-2xl font-bold text-primary">{files.length}</p>
@@ -268,7 +183,6 @@ export const PDFPreview: React.FC = () => {
             </div>
           </motion.div>
         )}
-
       </div>
     </div>
   );

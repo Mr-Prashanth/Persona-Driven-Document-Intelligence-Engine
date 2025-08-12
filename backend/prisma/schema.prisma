@@ -22,12 +22,14 @@ model Chat {
   userId   Int
   persona  String?
   job      String?
+  insights String? // New column to store generated insights
   pdfs     Pdf[]
 }
 
 model Pdf {
-  pdfId   Int     @id @default(autoincrement())
-  chat    Chat    @relation(fields: [chatId], references: [chatId], onDelete: Cascade)
-  chatId  Int
-  pdf     Bytes
+  pdfId    Int     @id @default(autoincrement())
+  chat     Chat    @relation(fields: [chatId], references: [chatId], onDelete: Cascade)
+  chatId   Int
+  pdf      Bytes
+  fileName String? // New column to store original file name
 }

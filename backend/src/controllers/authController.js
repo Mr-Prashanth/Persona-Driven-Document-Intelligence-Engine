@@ -76,8 +76,8 @@ exports.login = async (req, res, next) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    const token = signJwtToken({ id: user.id, name: user.name });
+    console.log(user.userId,user.name)
+    const token = signJwtToken({ id: user.userId, name: user.name });
 
     res.cookie('token', token, COOKIE_OPTIONS);
     res.status(200).json({ message: 'Login successful', user: { id: user.id, name: user.name } });

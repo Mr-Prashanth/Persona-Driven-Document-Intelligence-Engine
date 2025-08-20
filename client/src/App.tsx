@@ -36,13 +36,11 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/pdf-preview" element={<PDFPreview />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
       </PDFsProvider>
-          </UserProvider>
-
+      </UserProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

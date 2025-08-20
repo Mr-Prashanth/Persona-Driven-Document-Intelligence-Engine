@@ -1,60 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch, FiCalendar, FiFileText, FiTrash2, FiEdit } from 'react-icons/fi';
 import { ParticleBackground } from '../components/ParticleBackground';
 import { Button } from '../components/ui/button-enhanced';
 import { Input } from '../components/ui/input-enhanced';
 import { useNavigate } from 'react-router-dom';
-
-interface ChatSession {
-  id: string;
-  title: string;
-  persona: string;
-  date: string;
-  fileCount: number;
-  preview: string;
-}
-
-const mockSessions: ChatSession[] = [
-  {
-    id: '1',
-    title: 'Financial Analysis Q4 2024',
-    persona: 'Financial Analyst',
-    date: '2024-01-15',
-    fileCount: 2,
-    preview: 'Revenue projections show 15% growth...'
-  },
-  {
-    id: '2',
-    title: 'Marketing Strategy Review',
-    persona: 'Marketing Manager',
-    date: '2024-01-14',
-    fileCount: 1,
-    preview: 'Digital channel allocation analysis...'
-  },
-  {
-    id: '3',
-    title: 'Academic Research Summary',
-    persona: 'Student',
-    date: '2024-01-12',
-    fileCount: 3,
-    preview: 'Key concepts from research papers...'
-  }
-];
+import axios from 'axios';
 
 export const History: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sessions, setSessions] = useState(mockSessions);
+  const [sessions, setSessions] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/chat/chats_history', {
+          withCredentials: true,
+          
+        });
+
+        // transform API response to session format
+        const transformed = res.data.chats.map((chat) => ({
+          id: chat.chatId.toString(),
+          title: chat.insights || "Untitled Chat",
+          persona: chat.persona || 'N/A',
+          date: chat.createdAt || new Date().toISOString(),
+          fileCount: chat.pdfs?.length || 0,
+          preview: chat.insights || "—"
+        }));
+
+        setSessions(transformed);
+      } catch (err) {
+        console.error("Error loading chat history:", err);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  const deleteSession = (id) => {
+    setSessions(sessions.filter(s => s.id !== id));
+  };
 
   const filteredSessions = sessions.filter(session =>
     session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     session.persona.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const deleteSession = (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
-  };
 
   return (
     <div className="min-h-screen bg-vectra-dark relative overflow-hidden">

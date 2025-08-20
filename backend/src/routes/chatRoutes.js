@@ -11,5 +11,6 @@ router.post(
   uploadMiddleware, // multer middleware
   chatController.uploadPdf
 );
+router.get('/chats_history', authMiddleware, chatController.getChatsByUser);
 
 module.exports = router;

@@ -64,3 +64,29 @@ exports.uploadPdf = async (req, res) => {
     });
   }
 };
+
+exports.getChatsByUser = async (req, res) => {
+  try {
+    const userId = req.user.id; // internal userId from JWT
+
+    // fetch chats directly since userId is already stored in Chat table
+    const chats = await prisma.chat.findMany({
+      where: { userId: userId },
+      include: {
+        pdfs: true,  // includes PDFs for each chat
+      },
+    });
+
+    if (!chats || chats.length === 0) {
+      return res.status(404).json({ error: 'No chats found for this user' });
+    }
+
+    return res.status(200).json({ chats });
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message,
+    });
+  }
+};

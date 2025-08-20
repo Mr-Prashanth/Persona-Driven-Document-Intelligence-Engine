@@ -2,9 +2,9 @@ const prisma= require('../config/db');
 
 exports.profile = async(req,res,next) => {
     try {
-        const userId = req.user.id; // Assuming user ID is stored in req.user by authentication middleware
+        const userId = req.user.id; 
         const user = await prisma.user.findUnique({
-            where: { id: userId },
+            where: { userId: userId },
             select: {
                 id: true,
                 name: true,

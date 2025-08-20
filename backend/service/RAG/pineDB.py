@@ -58,3 +58,24 @@ def delete_chat(chat_id: str):
         print(f"All vectors for chat_id '{chat_id}' deleted successfully.")
     except Exception as e:
         print(f"Error deleting vectors for chat_id '{chat_id}': {e}")
+
+
+def search_chat_auto(query: str, chat_id: str, score_threshold: float = 0.75):
+    """
+    Searches Pinecone and returns only results with score >= score_threshold.
+    """
+
+    raw_results = index.search(
+        namespace=chat_id,
+        # include_metadata=False,
+        # include_values=False,
+        query={
+            "top_k": 10,
+            "inputs": {
+                "text": query
+            }
+        },
+        fields=["text"]
+    )
+
+    return raw_results

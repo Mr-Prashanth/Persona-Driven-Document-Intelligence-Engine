@@ -3,7 +3,7 @@ import shutil
 import os
 from typing import List
 from RAG.extractor import extract_chunks
-from RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat
+from RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat, search_chat_auto
 app = FastAPI()
 
 UPLOAD_DIR = "uploaded_pdfs"
@@ -88,3 +88,20 @@ async def delete_chat_endpoint(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/search-chat")
+async def search_chat_endpoint(query: str, chat_id: str, score_threshold: float = 0.5):
+    try:
+        raw_results =  search_chat_auto(query, chat_id)
+        hits = raw_results.get("result", {}).get("hits", [])
+        print(raw_results)
+        # Keep only hits with score >= score_threshold
+        texts = [
+            hit["fields"]["text"]
+            for hit in hits
+            if hit.get("_score", 0) >= score_threshold and "fields" in hit and "text" in hit["fields"]
+        ]
+        return texts
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

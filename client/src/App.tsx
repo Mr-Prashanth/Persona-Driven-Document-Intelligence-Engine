@@ -14,16 +14,17 @@ import Profile from "./pages/Profile";
 import PDFPreview from "./pages/PDFPreview";
 import NotFound from "./pages/NotFound";
 import { UserProvider } from "./contexts/userContext";
+import { PDFsProvider } from "./contexts/pdfContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-          <UserProvider>
-
+      <UserProvider>
       <Toaster />
       <Sonner />
+      <PDFsProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </PDFsProvider>
           </UserProvider>
 
     </TooltipProvider>

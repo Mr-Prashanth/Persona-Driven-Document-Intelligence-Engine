@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiUpload, FiFileText, FiUser, FiLogOut, FiSettings, FiTarget, FiDownload, FiVolume2, FiEye, FiClock } from 'react-icons/fi';
+import {
+  FiUpload, FiFileText, FiUser, FiLogOut, FiSettings, FiTarget,
+  FiDownload, FiVolume2, FiEye, FiClock
+} from 'react-icons/fi';
 import { ParticleBackground } from '../components/ParticleBackground';
 import { Button } from '../components/ui/button-enhanced';
 import { useToast } from '../hooks/use-toast';
@@ -10,17 +13,19 @@ import axios from 'axios';
 import { useUser } from '../contexts/userContext';
 import { usePDFs } from '../contexts/pdfContext';
 
-export const Dashboard: React.FC = () => {
-  const { files, setFiles } = usePDFs(); // ✅ Using context only
-  const [persona, setPersona] = useState('');
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
 interface SearchResult {
+  id: number;
   text: string;
-  score: number;
+  score?: number;
 }
 
-const [results, setResults] = useState<SearchResult[]>([]);
+export const Dashboard: React.FC = () => {
+  const { files, setFiles } = usePDFs();
+  const [persona, setPersona] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [showProcessingModal, setShowProcessingModal] = useState(false);
 
   const { username } = useUser();
@@ -28,34 +33,29 @@ const [results, setResults] = useState<SearchResult[]>([]);
   const navigate = useNavigate();
 
   const handleFileUpload = (newFiles: File[]) => {
-  const mapped = newFiles.map((file, idx) => ({
-    id: Date.now() + "_" + idx,
-    name: file.name,
-    size: file.size,
-    uploadDate: new Date().toISOString(),
-    pageCount: undefined,
-    file, // ✅ keep the original File object
-  }));
-  setFiles(prev => [...prev, ...mapped]);
-};
-
+    const mapped = newFiles.map((file, idx) => ({
+      id: Date.now() + "_" + idx,
+      name: file.name,
+      size: file.size,
+      uploadDate: new Date().toISOString(),
+      pageCount: undefined,
+      file
+    }));
+    setFiles(prev => [...prev, ...mapped]);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length > 0) {
-      handleFileUpload(droppedFiles);
-    }
+    if (droppedFiles.length > 0) handleFileUpload(droppedFiles);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFileUpload(Array.from(e.target.files));
-    }
+    if (e.target.files && e.target.files.length > 0) handleFileUpload(Array.from(e.target.files));
   };
 
-  const handleProcess = async () => {
+  const handleUpload = async () => {
     if (files.length === 0 || !persona.trim()) {
       toast({
         title: "Missing information",
@@ -65,46 +65,67 @@ const [results, setResults] = useState<SearchResult[]>([]);
       return;
     }
 
-    setIsProcessing(true);
-
+    setUploadingFiles(true);
     try {
       const formData = new FormData();
       formData.append('persona', persona);
-      console.log(files)
-      files.forEach(fileObj => {
-      if (fileObj.file) {
-            formData.append('pdfs', fileObj.file);
-      }
-});
+      files.forEach(f => f.file && formData.append('pdfs', f.file));
 
-      console.log(formData);
       const res = await axios.post(
         'http://localhost:5000/chat/pdf_upload',
         formData,
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }
+        { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } }
       );
 
-      if (res.data?.fastApiResponse?.insights) {
-  const formatted = res.data.fastApiResponse.insights.map((text: string, idx: number) => ({
-    text,
-    score: 1, // default score when backend doesn't provide
-  }));
-  setResults(formatted);
-} else {
-  setResults([
-    { text: "PDFs uploaded successfully, awaiting processing results...", score: 1 }
-  ]);
-}
+      const chatId = res.data?.chatId;
+      if (chatId) localStorage.setItem("activeChatId", chatId);
 
-      setShowProcessingModal(true);
+      toast({
+        title: "Upload successful",
+        description: `Chat ${chatId} created and PDFs uploaded.`,
+      });
 
     } catch (error: any) {
       console.error('Error uploading PDFs:', error);
       toast({
         title: "Upload failed",
+        description: error.response?.data?.error || error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    const chatId = localStorage.getItem("activeChatId");
+    if (!chatId) {
+      toast({ title: "No chat found", description: "Please upload PDFs first.", variant: "destructive" });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await axios.get('http://localhost:5000/chat/search', {
+        params: { chatId, query: persona, scoreThreshold: 0.5 },
+        withCredentials: true,
+      });
+      console.log(res.data.searchResults);
+
+      // Map searchResults to include score if missing
+      const mappedResults: SearchResult[] = res.data.searchResults.map((item: any, idx: number) => ({
+        id: item.id ?? idx,
+        text: item.text,
+        score: item.score ?? 0
+      }));
+
+      setResults(mappedResults);
+      setShowProcessingModal(true);
+
+    } catch (error: any) {
+      console.error('Error searching chat:', error);
+      toast({
+        title: "Search failed",
         description: error.response?.data?.error || error.message,
         variant: "destructive"
       });
@@ -116,7 +137,7 @@ const [results, setResults] = useState<SearchResult[]>([]);
   const speakResults = () => {
     if ('speechSynthesis' in window && results.length > 0) {
       window.speechSynthesis.cancel();
-      const text = results.join('. ');
+      const text = results.map(r => r.text).join('. ');
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.8;
       utterance.pitch = 1;
@@ -140,101 +161,6 @@ const [results, setResults] = useState<SearchResult[]>([]);
       console.error('Logout failed:', error);
     }
   };
-
-  const handleUpload = async () => {
-  if (files.length === 0 || !persona.trim()) {
-    toast({
-      title: "Missing information",
-      description: "Please upload at least one PDF and provide a persona/task.",
-      variant: "destructive"
-    });
-    return;
-  }
-
-  setIsProcessing(true);
-
-  try {
-    const formData = new FormData();
-    formData.append('persona', persona);
-    files.forEach(fileObj => {
-      if (fileObj.file) {
-        formData.append('pdfs', fileObj.file);
-      }
-    });
-
-    const res = await axios.post(
-      'http://localhost:5000/chat/pdf_upload',
-      formData,
-      {
-        withCredentials: true,
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
-
-    // store chatId returned by backend for later search
-    const chatId = res.data?.chatId;
-    if (chatId) {
-      localStorage.setItem("activeChatId", chatId);
-    }
-
-    toast({
-      title: "Upload successful",
-      description: `Chat ${chatId} created and PDFs uploaded.`,
-    });
-
-  } catch (error: any) {
-    console.error('Error uploading PDFs:', error);
-    toast({
-      title: "Upload failed",
-      description: error.response?.data?.error || error.message,
-      variant: "destructive"
-    });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
-const handleSearch = async () => {
-  const chatId = localStorage.getItem("activeChatId");
-  if (!chatId) {
-    toast({ title: "No chat found", description: "Please upload PDFs first.", variant: "destructive" });
-    return;
-  }
-
-  setIsProcessing(true);
-
-  try {
-    const res = await axios.get('http://localhost:5000/chat/search', {
-      params: {
-        chatId,
-        query: persona, // using persona as query, or replace with a separate search input
-        scoreThreshold: 0.5,
-      },
-      withCredentials: true,
-    });
-    console.log('Search results:', res.data);
-    // ✅ Extract text + score neatly
-    const hits = res.data?.searchResults?.result?.hits || [];
-    const formatted = hits.map((hit: any) => ({
-      text: hit.fields?.text || "",
-      score: hit._score,
-    }));
-
-    setResults(formatted); // now results is [{text, score}, ...]
-    setShowProcessingModal(true);
-
-  } catch (error: any) {
-    console.error('Error searching chat:', error);
-    toast({
-      title: "Search failed",
-      description: error.response?.data?.error || error.message,
-      variant: "destructive"
-    });
-  } finally {
-    setIsProcessing(false);
-  }
-};
-
 
   return (
     <div className="min-h-screen bg-vectra-dark relative overflow-hidden">
@@ -273,7 +199,7 @@ const handleSearch = async () => {
       {/* Main Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
+
           {/* Upload Section */}
           <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="space-y-3">
             <div className="flex justify-between items-center">
@@ -288,7 +214,6 @@ const handleSearch = async () => {
               )}
             </div>
 
-
             {/* File Upload Area */}
             <div
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
@@ -298,7 +223,12 @@ const handleSearch = async () => {
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
             >
-              {files.length > 0 ? (
+              {uploadingFiles ? (
+                <div className="flex flex-col items-center justify-center h-full space-y-4">
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full" />
+                  <p className="text-vectra-text-secondary">Uploading your files...</p>
+                </div>
+              ) : files.length > 0 ? (
                 <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
                   <FiFileText size={48} className="mx-auto text-primary" />
                   <div>
@@ -333,17 +263,18 @@ const handleSearch = async () => {
                 </>
               )}
             </div>
-              {/*This is my uopload files button , if i click the button the api upload files must be called*/}
+
+            {/* Upload Button */}
             <Button
-  variant="primary"
-  size="xl"
-  className="w-full"
-  onClick={handleUpload}
-  loading={isProcessing}
-  disabled={files.length === 0 || !persona.trim()}
->
-  {isProcessing ? 'Uploading Files...' : 'Upload Files'}
-</Button>
+              variant="primary"
+              size="xl"
+              className="w-full mt-2"
+              onClick={handleUpload}
+              loading={uploadingFiles}
+              disabled={files.length === 0 || !persona.trim()}
+            >
+              {uploadingFiles ? 'Uploading Files...' : 'Upload Files'}
+            </Button>
 
             {/* Persona Input */}
             <div>
@@ -360,15 +291,15 @@ const handleSearch = async () => {
 
             {/* Process Button */}
             <Button
-  variant="primary"
-  size="xl"
-  className="w-full mt-2"
-  onClick={handleSearch}
-  loading={isProcessing}
-  disabled={!localStorage.getItem("activeChatId")}
->
-  {isProcessing ? 'Processing PDF...' : 'Extract Insights'}
-</Button>
+              variant="primary"
+              size="xl"
+              className="w-full mt-2"
+              onClick={handleSearch}
+              loading={isProcessing}
+              disabled={!localStorage.getItem("activeChatId")}
+            >
+              {isProcessing ? 'Processing PDF...' : 'Extract Insights'}
+            </Button>
           </motion.div>
 
           {/* Results Section */}
@@ -395,22 +326,19 @@ const handleSearch = async () => {
                   </div>
                   <div className="space-y-3">
                     {results.map((result, index) => (
-  <motion.div 
-    key={index} 
-    initial={{ opacity: 0, y: 20 }} 
-    animate={{ opacity: 1, y: 0 }} 
-    transition={{ duration: 0.4, delay: index * 0.1 }} 
-    className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors"
-  >
-    <div className="flex justify-between items-start">
-      <p className="text-vectra-text-primary text-sm leading-relaxed">{result.text}</p>
-      <span className="text-xs text-vectra-text-secondary ml-3">
-        {result.score.toFixed(3)}
-      </span>
-    </div>
-  </motion.div>
-))}
-
+                      <motion.div 
+                        key={result.id} 
+                        initial={{ opacity: 0, y: 20 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ duration: 0.4, delay: index * 0.1 }} 
+                        className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <p className="text-vectra-text-primary text-sm leading-relaxed">{result.text}</p>
+                          <span className="text-xs text-vectra-text-secondary ml-3">{result.score?.toFixed(3)}</span>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
               ) : (

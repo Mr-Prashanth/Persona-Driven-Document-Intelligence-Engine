@@ -90,17 +90,16 @@ async def delete_chat_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/search-chat")
-async def search_chat_endpoint(query: str, chat_id: str, score_threshold: float = 0.5):
+async def search_chat_endpoint(query: str, chat_id: str):
     try:
         raw_results =  search_chat_auto(query, chat_id)
         hits = raw_results.get("result", {}).get("hits", [])
-        print(raw_results)
-        # Keep only hits with score >= score_threshold
         texts = [
             hit["fields"]["text"]
             for hit in hits
-            if hit.get("_score", 0) >= score_threshold and "fields" in hit and "text" in hit["fields"]
+            if hit.get("_score", 0) >= 0.02 and "fields" in hit and "text" in hit["fields"]
         ]
+        print("This is",texts)
         return texts
 
     except Exception as e:

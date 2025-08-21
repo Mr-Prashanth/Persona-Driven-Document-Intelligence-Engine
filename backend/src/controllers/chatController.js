@@ -60,7 +60,7 @@ exports.uploadPdf = async (req, res) => {
 // ------------------ Search Chat ------------------
 exports.searchChat = async (req, res) => {
   try {
-    const { chatId, query, scoreThreshold } = req.query;
+    const { chatId, query } = req.query;
 
     if (!chatId || !query) {
       return res.status(400).json({ error: 'chatId and query are required' });
@@ -69,23 +69,29 @@ exports.searchChat = async (req, res) => {
     const fastApiSearchResponse = await axios.get(
       'http://localhost:8000/search-chat',
       {
-        params: {
-          query,
-          chat_id: chatId,
-          score_threshold: scoreThreshold || 0.5,
-        },
+        params: { query, chat_id: chatId },
       }
     );
 
-    // Now directly get the array of texts
-    const searchResults = fastApiSearchResponse.data?.results || [];
+    // Get array of text from FastAPI
+    const searchResults = fastApiSearchResponse.data;
+    // Format each chunk: trim and normalize line breaks
+    const formattedResults = searchResults.map((text, idx) => ({
+      id: idx + 1,
+      text: text.replace(/\n+/g, "\n").trim(),
+    }));
 
-    console.log("Search results from FastAPI:", searchResults);
+    // Optional: merge all into a single string
+    const mergedText = formattedResults.map(r => r.text).join("\n\n");
+
+    console.log("Formatted search results:", formattedResults);
 
     return res.status(200).json({
       chatId,
       query,
-      searchResults,
+      // You can send both if you like
+      searchResults: formattedResults,  
+      mergedText,  // single readable text block
     });
 
   } catch (error) {

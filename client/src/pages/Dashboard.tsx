@@ -15,7 +15,12 @@ export const Dashboard: React.FC = () => {
   const [persona, setPersona] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState<string[]>([]);
+interface SearchResult {
+  text: string;
+  score: number;
+}
+
+const [results, setResults] = useState<SearchResult[]>([]);
   const [showProcessingModal, setShowProcessingModal] = useState(false);
 
   const { username } = useUser();
@@ -83,10 +88,17 @@ export const Dashboard: React.FC = () => {
       );
 
       if (res.data?.fastApiResponse?.insights) {
-        setResults(res.data.fastApiResponse.insights);
-      } else {
-        setResults(["PDFs uploaded successfully, awaiting processing results..."]);
-      }
+  const formatted = res.data.fastApiResponse.insights.map((text: string, idx: number) => ({
+    text,
+    score: 1, // default score when backend doesn't provide
+  }));
+  setResults(formatted);
+} else {
+  setResults([
+    { text: "PDFs uploaded successfully, awaiting processing results...", score: 1 }
+  ]);
+}
+
       setShowProcessingModal(true);
 
     } catch (error: any) {
@@ -129,6 +141,101 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const handleUpload = async () => {
+  if (files.length === 0 || !persona.trim()) {
+    toast({
+      title: "Missing information",
+      description: "Please upload at least one PDF and provide a persona/task.",
+      variant: "destructive"
+    });
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    const formData = new FormData();
+    formData.append('persona', persona);
+    files.forEach(fileObj => {
+      if (fileObj.file) {
+        formData.append('pdfs', fileObj.file);
+      }
+    });
+
+    const res = await axios.post(
+      'http://localhost:5000/chat/pdf_upload',
+      formData,
+      {
+        withCredentials: true,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+
+    // store chatId returned by backend for later search
+    const chatId = res.data?.chatId;
+    if (chatId) {
+      localStorage.setItem("activeChatId", chatId);
+    }
+
+    toast({
+      title: "Upload successful",
+      description: `Chat ${chatId} created and PDFs uploaded.`,
+    });
+
+  } catch (error: any) {
+    console.error('Error uploading PDFs:', error);
+    toast({
+      title: "Upload failed",
+      description: error.response?.data?.error || error.message,
+      variant: "destructive"
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+const handleSearch = async () => {
+  const chatId = localStorage.getItem("activeChatId");
+  if (!chatId) {
+    toast({ title: "No chat found", description: "Please upload PDFs first.", variant: "destructive" });
+    return;
+  }
+
+  setIsProcessing(true);
+
+  try {
+    const res = await axios.get('http://localhost:5000/chat/search', {
+      params: {
+        chatId,
+        query: persona, // using persona as query, or replace with a separate search input
+        scoreThreshold: 0.5,
+      },
+      withCredentials: true,
+    });
+    console.log('Search results:', res.data);
+    // ✅ Extract text + score neatly
+    const hits = res.data?.searchResults?.result?.hits || [];
+    const formatted = hits.map((hit: any) => ({
+      text: hit.fields?.text || "",
+      score: hit._score,
+    }));
+
+    setResults(formatted); // now results is [{text, score}, ...]
+    setShowProcessingModal(true);
+
+  } catch (error: any) {
+    console.error('Error searching chat:', error);
+    toast({
+      title: "Search failed",
+      description: error.response?.data?.error || error.message,
+      variant: "destructive"
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+
   return (
     <div className="min-h-screen bg-vectra-dark relative overflow-hidden">
       <ParticleBackground />
@@ -168,10 +275,10 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* Upload Section */}
-          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="space-y-6">
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="space-y-3">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-semibold text-vectra-text-primary mb-2">Upload PDF Documents</h2>
+                <h2 className="text-xl font-semibold text-vectra-text-primary mb-1">Upload PDF Documents</h2>
                 <p className="text-sm text-vectra-text-secondary">Upload multiple PDF files to extract AI-powered insights</p>
               </div>
               {files.length > 0 && (
@@ -180,6 +287,7 @@ export const Dashboard: React.FC = () => {
                 </Button>
               )}
             </div>
+
 
             {/* File Upload Area */}
             <div
@@ -225,6 +333,17 @@ export const Dashboard: React.FC = () => {
                 </>
               )}
             </div>
+              {/*This is my uopload files button , if i click the button the api upload files must be called*/}
+            <Button
+  variant="primary"
+  size="xl"
+  className="w-full"
+  onClick={handleUpload}
+  loading={isProcessing}
+  disabled={files.length === 0 || !persona.trim()}
+>
+  {isProcessing ? 'Uploading Files...' : 'Upload Files'}
+</Button>
 
             {/* Persona Input */}
             <div>
@@ -240,9 +359,16 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Process Button */}
-            <Button variant="primary" size="xl" className="w-full" onClick={handleProcess} loading={isProcessing} disabled={files.length === 0 || !persona.trim()}>
-              {isProcessing ? 'Processing PDF...' : 'Extract Insights'}
-            </Button>
+            <Button
+  variant="primary"
+  size="xl"
+  className="w-full mt-2"
+  onClick={handleSearch}
+  loading={isProcessing}
+  disabled={!localStorage.getItem("activeChatId")}
+>
+  {isProcessing ? 'Processing PDF...' : 'Extract Insights'}
+</Button>
           </motion.div>
 
           {/* Results Section */}
@@ -269,10 +395,22 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     {results.map((result, index) => (
-                      <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.1 }} className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors">
-                        <p className="text-vectra-text-primary text-sm leading-relaxed">{result}</p>
-                      </motion.div>
-                    ))}
+  <motion.div 
+    key={index} 
+    initial={{ opacity: 0, y: 20 }} 
+    animate={{ opacity: 1, y: 0 }} 
+    transition={{ duration: 0.4, delay: index * 0.1 }} 
+    className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors"
+  >
+    <div className="flex justify-between items-start">
+      <p className="text-vectra-text-primary text-sm leading-relaxed">{result.text}</p>
+      <span className="text-xs text-vectra-text-secondary ml-3">
+        {result.score.toFixed(3)}
+      </span>
+    </div>
+  </motion.div>
+))}
+
                   </div>
                 </div>
               ) : (

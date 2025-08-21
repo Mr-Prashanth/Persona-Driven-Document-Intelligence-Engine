@@ -23,8 +23,8 @@ export const History: React.FC = () => {
         // transform API response to session format
         const transformed = res.data.chats.map((chat) => ({
           id: chat.chatId.toString(),
-          title: chat.insights || "Untitled Chat",
-          persona: chat.persona || 'N/A',
+          title: chat.persona || "Untitled Chat",
+          insights: chat.insights || 'N/A',
           date: chat.createdAt || new Date().toISOString(),
           fileCount: chat.pdfs?.length || 0,
           preview: chat.insights || "—"

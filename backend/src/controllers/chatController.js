@@ -6,11 +6,10 @@ const FormData = require('form-data');
 exports.uploadPdf = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { persona, job } = req.body;
 
     // 1. Create a new chat entry
     const chat = await prisma.chat.create({
-      data: { userId, persona: persona || null, job: job || null },
+      data: { userId },
     });
 
     console.log(`Received ${req.files?.length || 0} files for chat ID ${chat.chatId}`);
@@ -26,7 +25,7 @@ exports.uploadPdf = async (req, res) => {
     }));
     await prisma.pdf.createMany({ data: pdfData });
 
-    // 3. Forward PDFs to FastAPI
+    // 3. Forward PDFs to FastAPI (optional, if you still need processing)
     const formData = new FormData();
     formData.append('chat_id', String(chat.chatId));
 
@@ -44,7 +43,6 @@ exports.uploadPdf = async (req, res) => {
       { headers: formData.getHeaders() }
     );
 
-
     return res.status(201).json({
       message: 'Chat created and PDFs uploaded successfully',
       chatId: chat.chatId,
@@ -60,38 +58,45 @@ exports.uploadPdf = async (req, res) => {
 // ------------------ Search Chat ------------------
 exports.searchChat = async (req, res) => {
   try {
-    const { chatId, query } = req.query;
+    // Read from query
+    const { chatId, persona } = req.query;
 
-    if (!chatId || !query) {
-      return res.status(400).json({ error: 'chatId and query are required' });
+    if (!chatId || !persona) {
+      return res.status(400).json({ error: 'chatId and persona are required' });
     }
 
+    // 1. Send request to FastAPI with persona and chatId
     const fastApiSearchResponse = await axios.get(
       'http://localhost:8000/search-chat',
       {
-        params: { query, chat_id: chatId },
+        params: { chat_id: chatId, query: persona },
       }
     );
 
-    // Get array of text from FastAPI
     const searchResults = fastApiSearchResponse.data;
-    // Format each chunk: trim and normalize line breaks
+
+    // 2. Format results
     const formattedResults = searchResults.map((text, idx) => ({
       id: idx + 1,
       text: text.replace(/\n+/g, "\n").trim(),
     }));
 
-    // Optional: merge all into a single string
+    // 3. Merge all insights into a single text block
     const mergedText = formattedResults.map(r => r.text).join("\n\n");
 
     console.log("Formatted search results:", formattedResults);
 
+    // 4. Save the insights to the chat in DB
+    await prisma.chat.update({
+      where: { chatId: Number(chatId) },
+      data: { insights: mergedText },
+    });
+
     return res.status(200).json({
       chatId,
-      query,
-      // You can send both if you like
-      searchResults: formattedResults,  
-      mergedText,  // single readable text block
+      persona,
+      searchResults: formattedResults,
+      mergedText,
     });
 
   } catch (error) {
@@ -99,6 +104,7 @@ exports.searchChat = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
+
 
 // ------------------ Get Chats by User ------------------
 exports.getChatsByUser = async (req, res) => {

@@ -56,10 +56,10 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0 || !persona.trim()) {
+    if (files.length === 0) {
       toast({
-        title: "Missing information",
-        description: "Please upload at least one PDF and provide a persona/task.",
+        title: "No files selected",
+        description: "Please upload at least one PDF to create a chat.",
         variant: "destructive"
       });
       return;
@@ -68,7 +68,6 @@ export const Dashboard: React.FC = () => {
     setUploadingFiles(true);
     try {
       const formData = new FormData();
-      formData.append('persona', persona);
       files.forEach(f => f.file && formData.append('pdfs', f.file));
 
       const res = await axios.post(
@@ -104,15 +103,20 @@ export const Dashboard: React.FC = () => {
       return;
     }
 
+    if (!persona.trim()) {
+      toast({ title: "Missing persona", description: "Please provide a persona/task description to extract insights.", variant: "destructive" });
+      return;
+    }
+
     setIsProcessing(true);
+    console.log(chatId, persona);
     try {
       const res = await axios.get('http://localhost:5000/chat/search', {
-        params: { chatId, query: persona, scoreThreshold: 0.5 },
+        params: { chatId, persona },
         withCredentials: true,
       });
       console.log(res.data.searchResults);
 
-      // Map searchResults to include score if missing
       const mappedResults: SearchResult[] = res.data.searchResults.map((item: any, idx: number) => ({
         id: item.id ?? idx,
         text: item.text,
@@ -271,7 +275,7 @@ export const Dashboard: React.FC = () => {
               className="w-full mt-2"
               onClick={handleUpload}
               loading={uploadingFiles}
-              disabled={files.length === 0 || !persona.trim()}
+              disabled={files.length === 0}
             >
               {uploadingFiles ? 'Uploading Files...' : 'Upload Files'}
             </Button>

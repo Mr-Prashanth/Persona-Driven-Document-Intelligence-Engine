@@ -4,10 +4,10 @@ const { signJwtToken } = require('../utils/jwt');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
-  path: '/',
-  maxAge: 60 * 60 * 1000, // 1 hour in ms
+  secure: process.env.NODE_ENV === "production", // true in production
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax", 
+  path: "/",
+  maxAge: 60 * 60 * 1000, // 1 hour
 };
 
 
@@ -52,11 +52,13 @@ exports.logout = async(req,res,next) =>{
     }
 
     // Clear the token cookie
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: false,  // set to true in production with HTTPS
-        sameSite: 'strict'
-    });
+    res.clearCookie("token", {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  path: "/"
+});
+
     return res.json({ message: 'Logged out successfully' });
 }
 

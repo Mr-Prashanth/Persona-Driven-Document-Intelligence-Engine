@@ -38,7 +38,7 @@ exports.uploadPdf = async (req, res) => {
     });
 
     const fastApiResponse = await axios.post(
-      'http://localhost:8000/upload-pdfs',
+      process.env.FAST_API_URL+'/upload-pdfs',
       formData,
       { headers: formData.getHeaders() }
     );
@@ -67,7 +67,7 @@ exports.searchChat = async (req, res) => {
 
     // 1. Send request to FastAPI with persona and chatId
     const fastApiSearchResponse = await axios.get(
-      'http://localhost:8000/search-chat',
+      process.env.FAST_API_URL+'/search-chat',
       {
         params: { chat_id: chatId, query: persona },
       }
@@ -156,7 +156,7 @@ exports.deleteChat = async (req, res) => {
     });
 
     // 4. Call FastAPI to delete from Pinecone
-    await axios.delete('http://localhost:8000/delete-chat', {
+    await axios.delete(process.env.FAST_API_URL+'/delete-chat', {
       params: { chat_id: chatId },
     });
 

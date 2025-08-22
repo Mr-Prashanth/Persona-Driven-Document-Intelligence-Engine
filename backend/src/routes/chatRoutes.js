@@ -18,4 +18,8 @@ router.get('/search', authMiddleware, chatController.searchChat);
 // Get user’s chat history
 router.get('/chats_history', authMiddleware, chatController.getChatsByUser);
 
+// Delete chat by ID
+router.delete('/delete/:chatId', authMiddleware, chatController.deleteChat);
+
+
 module.exports = router;

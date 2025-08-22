@@ -39,9 +39,21 @@ export const History: React.FC = () => {
     fetchHistory();
   }, []);
 
-  const deleteSession = (id) => {
-    setSessions(sessions.filter(s => s.id !== id));
-  };
+  const deleteSession = async (id: string) => {
+  try {
+    // Call backend API
+    await axios.delete(`http://localhost:5000/chat/delete/${id}`, {
+      withCredentials: true,
+    });
+
+    // Update UI state
+    setSessions(sessions.filter((s) => s.id !== id));
+  } catch (err) {
+    console.error("Error deleting session:", err);
+    alert("Failed to delete session. Please try again.");
+  }
+};
+
 
   const filteredSessions = sessions.filter(session =>
     session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,14 +148,15 @@ export const History: React.FC = () => {
                     }}
                   />
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={<FiTrash2 size={16} />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSession(session.id);
-                    }}
-                  />
+  variant="ghost"
+  size="sm"
+  icon={<FiTrash2 size={16} />}
+  onClick={(e) => {
+    e.stopPropagation();
+    deleteSession(session.id);   // call API + update UI
+  }}
+/>
+
                 </div>
               </div>
             </motion.div>

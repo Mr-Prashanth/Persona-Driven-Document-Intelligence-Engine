@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useUser } from '../contexts/userContext';
 import { usePDFs } from '../contexts/pdfContext';
+import {assets }from "../assets/assets";
 
 interface SearchResult {
   id: number;
@@ -179,7 +180,7 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-6">
-              <img src="client/src/components/logo.png" alt="VectraPDF Logo" className="h-8" />
+              <img src={assets.logo} alt="VectraPDF Logo" className="h-8" />
               <Button variant="ghost" size="sm" icon={<FiClock size={18} />} onClick={() => navigate('/history')}>
                 History
               </Button>

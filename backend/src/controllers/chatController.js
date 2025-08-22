@@ -110,19 +110,62 @@ exports.searchChat = async (req, res) => {
 exports.getChatsByUser = async (req, res) => {
   try {
     const userId = req.user.id;
-
     const chats = await prisma.chat.findMany({
       where: { userId },
       include: { pdfs: true },
     });
-
     if (!chats || chats.length === 0) {
-      return res.status(404).json({ error: 'No chats found for this user' });
+      // Return 200 with empty chats array
+      return res.status(200).json({ chats: [], message: 'No chat history found.' });
     }
-
     return res.status(200).json({ chats });
   } catch (error) {
     console.error('Error fetching chats:', error);
+    return res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+
+// ------------------ Delete Chat ------------------
+exports.deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    if (!chatId) {
+      return res.status(400).json({ error: 'chatId is required' });
+    }
+
+    // 1. Get PDFs associated with this chat
+    const pdfs = await prisma.pdf.findMany({
+      where: { chatId: Number(chatId) },
+    });
+
+    // 2. Delete local PDF files (if you are saving them in filesystem with fileName)
+    for (const pdf of pdfs) {
+      if (pdf.fileName) {
+        const filePath = path.join(__dirname, '../uploads', pdf.fileName);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted local file: ${filePath}`);
+        }
+      }
+    }
+
+    // 3. Delete from Postgres (cascade removes PDFs too)
+    await prisma.chat.delete({
+      where: { chatId: Number(chatId) },
+    });
+
+    // 4. Call FastAPI to delete from Pinecone
+    await axios.delete('http://localhost:8000/delete-chat', {
+      params: { chat_id: chatId },
+    });
+
+    return res.status(200).json({
+      message: `Chat ${chatId} deleted from Postgres, Pinecone, and local storage.`,
+    });
+
+  } catch (error) {
+    console.error("Error in deleteChat:", error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };

@@ -56,7 +56,6 @@ export const Login: React.FC = () => {
 
       // ✅ Store username in context for global access
       setUsername(response.data.user.name);
-
       setLoading(false);
 
       toast({

@@ -13,6 +13,7 @@ import axios from 'axios';
 import { useUser } from '../contexts/userContext';
 import { usePDFs } from '../contexts/pdfContext';
 import {assets }from "../assets/assets";
+const api = import.meta.env.VITE_API_URL;
 
 interface SearchResult {
   id: number;
@@ -71,8 +72,8 @@ export const Dashboard: React.FC = () => {
       const formData = new FormData();
       files.forEach(f => f.file && formData.append('pdfs', f.file));
 
-      const res = await axios.post(
-        'http://localhost:5000/chat/pdf_upload',
+      const res = await axios.post(api+
+        '/chat/pdf_upload',
         formData,
         { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } }
       );
@@ -112,7 +113,7 @@ export const Dashboard: React.FC = () => {
     setIsProcessing(true);
     console.log(chatId, persona);
     try {
-      const res = await axios.get('http://localhost:5000/chat/search', {
+      const res = await axios.get(api+'/chat/search', {
         params: { chatId, persona },
         withCredentials: true,
       });
@@ -160,7 +161,7 @@ export const Dashboard: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:5000/auth/logout', {}, { withCredentials: true });
+      await axios.post(api+'/auth/logout', {}, { withCredentials: true });
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);

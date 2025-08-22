@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button-enhanced';
 import { Input } from '../components/ui/input-enhanced';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
+const api = import.meta.env.VITE_API_URL;
 export const History: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sessions, setSessions] = useState([]);
@@ -15,7 +15,7 @@ export const History: React.FC = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/chat/chats_history', {
+        const res = await axios.get(api+'/chat/chats_history', {
           withCredentials: true,
           
         });
@@ -42,7 +42,7 @@ export const History: React.FC = () => {
   const deleteSession = async (id: string) => {
   try {
     // Call backend API
-    await axios.delete(`http://localhost:5000/chat/delete/${id}`, {
+    await axios.delete(api+`/chat/delete/${id}`, {
       withCredentials: true,
     });
 

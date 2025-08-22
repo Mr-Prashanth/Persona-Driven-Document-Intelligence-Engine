@@ -8,7 +8,7 @@ import { AuthLayout } from '../components/auth/AuthLayout';
 import { Input } from '../components/ui/input-enhanced';
 import { Button } from '../components/ui/button-enhanced';
 import { useToast } from '../hooks/use-toast';
-
+const api = import.meta.env.VITE_API_URL;
 declare global {
   interface Window {
     google: any;
@@ -89,7 +89,7 @@ export const Signup: React.FC = () => {
         phoneNumber: formData.phone
       };
 
-      const response = await axios.post('http://localhost:5000/auth/signup', payload);
+      const response = await axios.post(api+'/auth/signup', payload);
 
       setLoading(false);
 

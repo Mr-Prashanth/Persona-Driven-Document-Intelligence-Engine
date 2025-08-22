@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input-enhanced';
 import { Button } from '../components/ui/button-enhanced';
 import { useToast } from '../hooks/use-toast';
 import { useUser } from '../contexts/userContext'; // ✅ NEW — import context hook
+const api = import.meta.env.VITE_API_URL;
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -50,7 +51,7 @@ export const Login: React.FC = () => {
     try {
       const payload = { id: email, password };
 
-      const response = await axios.post('http://localhost:5000/auth/login', payload, {
+      const response = await axios.post(api+'/auth/login', payload, {
         withCredentials: true,
       });
 

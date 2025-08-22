@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input-enhanced';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/use-toast';
-
+const api = import.meta.env.VITE_API_URL;
 export const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
@@ -27,7 +27,7 @@ export const Profile: React.FC = () => {
 
   // Fetch profile on component mount
   useEffect(() => {
-    fetch('http://localhost:5000/user/profile', {
+    fetch(api+'/user/profile', {
       method: 'GET',
       credentials: 'include', // VERY IMPORTANT so cookies are sent
     })

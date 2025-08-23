@@ -37,13 +37,15 @@ async def upload_pdfs(
             print(f"Processing file: {file.filename}, size: {os.path.getsize(file_path)} bytes")
             chunks = extract_chunks(file_path)
             all_chunks.extend(chunks)
-
+        #Added pinecone debug error 
         if all_chunks:
-            # Send to Pinecone in batches of 96 or less
-            for batch in chunk_list(all_chunks, 96):
-                store_in_pinecone(batch, chat_id=chat_id)
-        else:
-            return {"message": "No chunks found"}
+            try:
+                for batch in chunk_list(all_chunks, 96):
+                    store_in_pinecone(batch, chat_id=chat_id)
+            except Exception as e:
+                print(f"Pinecone error: {e}")
+                raise HTTPException(status_code=500, detail=f"Pinecone error: {str(e)}")
+
 
         # Clean up saved files
         for file_path in saved_file_paths:

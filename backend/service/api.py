@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Form, Query
 import shutil
 import os
 from typing import List
-from RAG.extractor import extract_chunks
+from service.RAG.extractor import extract_chunks
 from RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat, search_chat_auto
 app = FastAPI()
 

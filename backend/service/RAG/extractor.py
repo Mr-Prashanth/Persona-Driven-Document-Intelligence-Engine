@@ -1,6 +1,6 @@
 import os
 import pymupdf4llm
-from RAG.chunks import create_chunks
+from .chunks import create_chunks
 
 input_path = r"C:\Users\prash\Downloads\DataMining_CIA_1_Prashanth Project (1).pdf"
 

@@ -49,12 +49,12 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const payload = { id: email, password };
-
+      const payload = { email: email, password: password };
       const response = await axios.post(api+'/auth/login', payload, {
         withCredentials: true,
       });
-
+      localStorage.setItem("chatId",response.data.chatId);
+      console.log(localStorage.getItem("chatId"))
       // ✅ Store username in context for global access
       setUsername(response.data.user.name);
       setLoading(false);
@@ -81,12 +81,11 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    toast({
-      title: "Google OAuth",
-      description: "Google authentication would be integrated here.",
-    });
-  };
+const handleGoogleLogin = () => {
+  window.location.href = `${api}/auth/google`; // backend starts OAuth
+};
+
+
 
   return (
     <AuthLayout 

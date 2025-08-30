@@ -29,7 +29,6 @@ export const Dashboard: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showProcessingModal, setShowProcessingModal] = useState(false);
-
   const { username } = useUser();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -58,48 +57,59 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please upload at least one PDF to create a chat.",
-        variant: "destructive"
-      });
-      return;
+  if (files.length === 0) {
+    toast({
+      title: "No files selected",
+      description: "Please upload at least one PDF to create a chat.",
+      variant: "destructive"
+    });
+    return;
+  }
+
+  setUploadingFiles(true);
+  try {
+    const formData = new FormData();
+    files.forEach(f => f.file && formData.append("pdfs", f.file));
+
+    // ✅ Add chatId to request body
+    const chatId = localStorage.getItem("chatId");
+    if (chatId) {
+      formData.append("chatId", chatId);
     }
 
-    setUploadingFiles(true);
-    try {
-      const formData = new FormData();
-      files.forEach(f => f.file && formData.append('pdfs', f.file));
+    const res = await axios.post(
+      api + "/chat/pdf_upload",
+      formData,
+      {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" }
+      }
+    );
+const finalchatId=res.data.chatId;
 
-      const res = await axios.post(api+
-        '/chat/pdf_upload',
-        formData,
-        { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+    localStorage.setItem("chatId",finalchatId)
+    toast({
+      title: "Upload successful",
+      description: `Chat ${finalchatId} created and PDFs uploaded.`,
+    });
+    
 
-      const chatId = res.data?.chatId;
-      if (chatId) localStorage.setItem("activeChatId", chatId);
+  } catch (error: any) {
+    console.error("Error uploading PDFs:", error);
+    toast({
+      title: "Upload failed",
+      description: error.response?.data?.error || error.message,
+      variant: "destructive"
+    });
+  } finally {
+    setUploadingFiles(false);
+  }
+};
 
-      toast({
-        title: "Upload successful",
-        description: `Chat ${chatId} created and PDFs uploaded.`,
-      });
-
-    } catch (error: any) {
-      console.error('Error uploading PDFs:', error);
-      toast({
-        title: "Upload failed",
-        description: error.response?.data?.error || error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setUploadingFiles(false);
-    }
-  };
 
   const handleSearch = async () => {
-    const chatId = localStorage.getItem("activeChatId");
+    const chatId = localStorage.getItem("chatId");
+    console.log(chatId);
     if (!chatId) {
       toast({ title: "No chat found", description: "Please upload PDFs first.", variant: "destructive" });
       return;
@@ -161,12 +171,62 @@ export const Dashboard: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem("chatId")
       await axios.post(api+'/auth/logout', {}, { withCredentials: true });
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
+
+  // inside Dashboard component
+
+// helper for new chat
+const handleNewChat = async () => {
+  try {
+    // call backend API
+    const response = await axios.post(api+
+      "/chat/new-chat",
+      {}, // no body needed
+      {
+        withCredentials: true, // important for cookies
+      }
+    );
+
+    const newChatId = response.data.chatId;
+
+    // update local state and storage
+    setFiles([]);
+    setPersona('');
+    setResults([]);
+    localStorage.setItem("chatId", newChatId);
+    console.log(localStorage.getItem("chatId"))
+    toast({
+      title: "New chat started",
+      description: `Chat ID ${newChatId} created successfully.`,
+    });
+  } catch (error) {
+    console.error("Error creating new chat:", error);
+    toast({
+      title: "Error",
+      description: "Failed to start a new chat.",
+      variant: "destructive",
+    });
+  }
+};
+// helper for add more files
+const triggerFileDialog = () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".pdf";
+  input.multiple = true;
+  input.onchange = (e: any) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(Array.from(e.target.files));
+    }
+  };
+  input.click();
+};
 
   return (
     <div className="min-h-screen bg-vectra-dark relative overflow-hidden">
@@ -185,7 +245,16 @@ export const Dashboard: React.FC = () => {
               <Button variant="ghost" size="sm" icon={<FiClock size={18} />} onClick={() => navigate('/history')}>
                 History
               </Button>
-            </div>
+            
+             <Button
+                variant="ghost"
+                size="sm"
+                icon={<FiFileText size={18} />}
+                onClick={handleNewChat}
+              >
+                New Chat
+              </Button>
+              </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" icon={<FiSettings size={18} />} onClick={() => navigate('/settings')}>
                 Settings
@@ -271,16 +340,28 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Upload Button */}
-            <Button
-              variant="primary"
-              size="xl"
-              className="w-full mt-2"
-              onClick={handleUpload}
-              loading={uploadingFiles}
-              disabled={files.length === 0}
-            >
-              {uploadingFiles ? 'Uploading Files...' : 'Upload Files'}
-            </Button>
+            {/* Upload Button */}
+<Button
+  variant="primary"
+  size="xl"
+  className="w-full mt-2"
+  onClick={handleUpload}
+  loading={uploadingFiles}
+  disabled={files.length === 0}
+>
+  {uploadingFiles ? 'Uploading Files...' : 'Upload Files'}
+</Button>
+
+{/* Add More Files Button */}
+<Button
+  variant="primary"
+  size="xl"
+  className="w-full mt-2 ml-3"
+  onClick={triggerFileDialog}
+>
+  Add More Files
+</Button>
+
 
             {/* Persona Input */}
             <div>
@@ -302,7 +383,7 @@ export const Dashboard: React.FC = () => {
               className="w-full mt-2"
               onClick={handleSearch}
               loading={isProcessing}
-              disabled={!localStorage.getItem("activeChatId")}
+              disabled={!persona}
             >
               {isProcessing ? 'Processing PDF...' : 'Extract Insights'}
             </Button>

@@ -34,11 +34,12 @@ export const Profile: React.FC = () => {
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to fetch profile');
         const data = await res.json();
+        console.log(data)
         setProfile((prev) => ({
           ...prev,
-          name: data.user.name,
-          email: data.user.id ?? '', // if email is not returned, fallback
-          phone: data.user.phoneNumber ?? '',
+          name: data.name,
+          email: data.email ?? '', // if email is not returned, fallback
+          phone: data.phoneNumber ?? '',
           // you can map avatar or connectedAccounts if your API sends them
         }));
       })

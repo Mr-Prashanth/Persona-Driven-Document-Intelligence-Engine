@@ -20,6 +20,6 @@ router.get('/chats_history', authMiddleware, chatController.getChatsByUser);
 
 // Delete chat by ID
 router.delete('/delete/:chatId', authMiddleware, chatController.deleteChat);
-
+router.post("/new-chat",authMiddleware,chatController.startNewChat);
 
 module.exports = router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -8,12 +8,9 @@ import { AuthLayout } from '../components/auth/AuthLayout';
 import { Input } from '../components/ui/input-enhanced';
 import { Button } from '../components/ui/button-enhanced';
 import { useToast } from '../hooks/use-toast';
+import { useUser } from '../contexts/userContext'; // ✅ NEW — import context hook
+
 const api = import.meta.env.VITE_API_URL;
-declare global {
-  interface Window {
-    google: any;
-  }
-}
 
 export const Signup: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -23,6 +20,8 @@ export const Signup: React.FC = () => {
     password: '',
     confirmPassword: ''
   });
+    const { setUsername } = useUser(); // ✅ NEW — get setName from context
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -42,28 +41,22 @@ export const Signup: React.FC = () => {
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Full name is required';
-    }
-
+    if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email';
     }
-
     if (!formData.phone) {
       newErrors.phone = 'Phone number is required';
     } else if (!/^\+?[\d\s-()]+$/.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
     }
-
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters';
     }
-
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
     } else if (formData.password !== formData.confirmPassword) {
@@ -76,29 +69,30 @@ export const Signup: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     setLoading(true);
-
     try {
       const payload = {
-        id: formData.email,
+        email: formData.email,
         password: formData.password,
         name: formData.name,
         phoneNumber: formData.phone
       };
 
-      const response = await axios.post(api+'/auth/signup', payload);
+      const response = await axios.post(`${api}/auth/signup`, payload, {
+        withCredentials: true, // important to include cookie
+      });
 
       setLoading(false);
-
       if (response.status === 200 || response.status === 201) {
         toast({
           title: "Account created!",
-          description: "Welcome to Vectra PDF. Please check your email to verify your account.",
+          description: "Welcome to Vectra PDF.",
         });
-        navigate('/login');
+              setUsername(response.data.user.name);
+
+        navigate('/dashboard');
       } else {
         toast({
           title: "Signup failed",
@@ -122,9 +116,10 @@ export const Signup: React.FC = () => {
 
   // --- GOOGLE SIGN-IN LOGIC ---
   const handleGoogleSignup = () => {
-  
-};
-
+    setGoogleLoading(true);
+    // redirect user to backend OAuth endpoint
+    window.location.href = `${api}/auth/google`;
+  };
 
   const inputVariants = {
     hidden: { opacity: 0, x: -30 },
@@ -145,6 +140,7 @@ export const Signup: React.FC = () => {
       subtitle="Join Vectra PDF and unlock AI-powered document insights"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Full Name */}
         <motion.div custom={0} initial="hidden" animate="visible" variants={inputVariants}>
           <Input
             type="text"
@@ -156,6 +152,7 @@ export const Signup: React.FC = () => {
           />
         </motion.div>
 
+        {/* Email */}
         <motion.div custom={1} initial="hidden" animate="visible" variants={inputVariants}>
           <Input
             type="email"
@@ -167,6 +164,7 @@ export const Signup: React.FC = () => {
           />
         </motion.div>
 
+        {/* Phone */}
         <motion.div custom={2} initial="hidden" animate="visible" variants={inputVariants}>
           <Input
             type="tel"
@@ -178,6 +176,7 @@ export const Signup: React.FC = () => {
           />
         </motion.div>
 
+        {/* Password */}
         <motion.div custom={3} initial="hidden" animate="visible" variants={inputVariants}>
           <div className="relative">
             <Input
@@ -198,6 +197,7 @@ export const Signup: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* Confirm Password */}
         <motion.div custom={4} initial="hidden" animate="visible" variants={inputVariants}>
           <div className="relative">
             <Input
@@ -218,6 +218,7 @@ export const Signup: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* Terms */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -234,6 +235,7 @@ export const Signup: React.FC = () => {
           </Link>
         </motion.div>
 
+        {/* Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -249,7 +251,9 @@ export const Signup: React.FC = () => {
               <div className="w-full border-t border-vectra-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-vectra-dark px-4 text-vectra-text-secondary">Or sign up with</span>
+              <span className="bg-vectra-dark px-4 text-vectra-text-secondary">
+                Or sign up with
+              </span>
             </div>
           </div>
 
@@ -266,6 +270,7 @@ export const Signup: React.FC = () => {
           </Button>
         </motion.div>
 
+        {/* Already have account */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -6,13 +6,13 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 model User {
-  id           String   @id @unique             // Email
-  password     String
-  name         String
+  userId       Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String?
+  name         String?
   phoneNumber  String?
-  userId       Int      @unique @default(autoincrement())
+  googleId     String?  @unique
   chats        Chat[]
 }
 
@@ -22,7 +22,7 @@ model Chat {
   userId   Int
   persona  String?
   job      String?
-  insights String? // New column to store generated insights
+  insights String?
   pdfs     Pdf[]
 }
 
@@ -31,5 +31,5 @@ model Pdf {
   chat     Chat    @relation(fields: [chatId], references: [chatId], onDelete: Cascade)
   chatId   Int
   pdf      Bytes
-  fileName String? // New column to store original file name
+  fileName String?
 }

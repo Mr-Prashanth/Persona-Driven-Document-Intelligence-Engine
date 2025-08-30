@@ -2,8 +2,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Form, Query
 import shutil
 import os
 from typing import List
-from service.RAG.extractor import extract_chunks
-from service.RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat, search_chat_auto
+from RAG.extractor import extract_chunks
+from RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat, search_chat_auto
 app = FastAPI()
 
 UPLOAD_DIR = "/tmp/uploaded_pdfs"
@@ -18,9 +18,7 @@ def chunk_list(lst, size):
 async def upload_pdfs(
     chat_id: str = Form(...),
     files: List[UploadFile] = File(...)
-    
 ):
-    
     try:
         all_chunks = []
         folder_path = os.path.join(UPLOAD_DIR, chat_id)
@@ -31,13 +29,21 @@ async def upload_pdfs(
         for file in files:
             file_path = os.path.join(folder_path, file.filename)
             print(file_path)
+
+            # Save file
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
+            file.file.close()   # 👈 close handle here
+
             saved_file_paths.append(file_path)
+
             print(f"Processing file: {file.filename}, size: {os.path.getsize(file_path)} bytes")
+
+            # Extract chunks
             chunks = extract_chunks(file_path)
             all_chunks.extend(chunks)
-        #Added pinecone debug error 
+
+        # Store in Pinecone
         if all_chunks:
             try:
                 for batch in chunk_list(all_chunks, 96):
@@ -46,17 +52,19 @@ async def upload_pdfs(
                 print(f"Pinecone error: {e}")
                 raise HTTPException(status_code=500, detail=f"Pinecone error: {str(e)}")
 
-
-        # Clean up saved files
+        # Cleanup
         for file_path in saved_file_paths:
-            if os.path.exists(file_path):
+            try:
                 os.remove(file_path)
+            except PermissionError:
+                print(f"Warning: could not delete {file_path}, file still in use.")
 
         return {
             "filenames": [f.filename for f in files],
             "total_chunks_processed": len(all_chunks),
             "message": "Files uploaded"
         }
+
     except Exception as e:
         import traceback
         print("Upload error:", str(e))

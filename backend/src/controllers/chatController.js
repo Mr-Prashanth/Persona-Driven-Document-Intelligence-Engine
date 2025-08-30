@@ -3,64 +3,131 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 // ------------------ Upload PDFs ------------------
+// ------------------ Upload PDFs ------------------
 exports.uploadPdf = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    // 1. Create a new chat entry
-    const chat = await prisma.chat.create({
-      data: { userId },
-    });
-
-    console.log(`Received ${req.files?.length || 0} files for chat ID ${chat.chatId}`);
+    const { chatId } = req.body;
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No PDF files uploaded' });
+      return res.status(400).json({ error: "No PDF files uploaded" });
     }
 
-    // 2. Save PDFs in Postgres
-    const pdfData = req.files.map(file => ({
-      pdf: file.buffer,
-      chatId: chat.chatId,
-    }));
-    await prisma.pdf.createMany({ data: pdfData });
+    let chat;
 
-    // 3. Forward PDFs to FastAPI (optional, if you still need processing)
-    const formData = new FormData();
-    formData.append('chat_id', String(chat.chatId));
-
-    req.files.forEach(file => {
-      formData.append('files', file.buffer, {
-        filename: file.originalname,
-        contentType: file.mimetype,
-        knownLength: file.size,
+    if (chatId) {
+      chat = await prisma.chat.findUnique({
+        where: { chatId: Number(chatId) },
+        include: { pdfs: true }, 
       });
-    });
 
-    const fastApiResponse = await axios.post(
-      process.env.FAST_API_URL+'/upload-pdfs',
-      formData,
-      { headers: formData.getHeaders() }
+      if (!chat) {
+        return res.status(404).json({ error: `Chat ${chatId} not found.` });
+      }
+    } else {
+      chat = await prisma.chat.create({
+        data: { userId },
+        include: { pdfs: true },
+      });
+    }
+
+    // Extract existing + new files
+    const existingFiles = chat.pdfs.map((pdf) => pdf.fileName);
+    const newFiles = req.files.map((file) => file.originalname);
+
+    // ---------------- REMOVE OLD FILES ----------------
+    const filesToDelete = existingFiles.filter((f) => !newFiles.includes(f));
+
+    if (filesToDelete.length > 0) {
+      // Remove from DB
+      await prisma.pdf.deleteMany({
+        where: {
+          chatId: chat.chatId,
+          fileName: { in: filesToDelete },
+        },
+      });
+
+      // Call FastAPI delete for each removed file
+      await Promise.all(
+        filesToDelete.map((filename) =>
+          axios.delete(process.env.FAST_API_URL + "/delete-file", {
+            params: { chat_id: chat.chatId, filename },
+          })
+        )
+      );
+    }
+
+    // ---------------- ADD NEW FILES ----------------
+    const filesToAdd = req.files.filter(
+      (file) => !existingFiles.includes(file.originalname)
     );
 
-    return res.status(201).json({
-      message: 'Chat created and PDFs uploaded successfully',
-      chatId: chat.chatId,
-      fastApiResponse: fastApiResponse.data,
-    });
+    if (filesToAdd.length > 0) {
+      const pdfData = filesToAdd.map((file) => ({
+        pdf: file.buffer,
+        chatId: chat.chatId,
+        fileName: file.originalname,
+      }));
+      await prisma.pdf.createMany({ data: pdfData });
 
+      // Forward only new files to FastAPI
+      const formData = new FormData();
+      formData.append("chat_id", String(chat.chatId));
+
+      filesToAdd.forEach((file) => {
+        formData.append("files", file.buffer, {
+          filename: file.originalname,
+          contentType: "application/pdf",
+        });
+      });
+
+      await axios.post(
+        process.env.FAST_API_URL + "/upload-pdfs",
+        formData,
+        { headers: formData.getHeaders() }
+      );
+    }
+
+    return res.status(201).json({
+      message: "PDFs synced successfully",
+      chatId: chat.chatId,
+    });
   } catch (error) {
     console.error("Error in uploadPdf:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal server error", details: error.message });
+  }
+};
+
+
+exports.startNewChat = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const newChat = await prisma.chat.create({
+      data: { userId }, // no need to pass chatId
+    });
+
+    console.log("New Chat ID:", newChat.chatId);
+
+    return res.status(201).json({
+      message: 'New chat started',
+      chatId: newChat.chatId,
+    });
+  } catch (error) {
+    console.error("Error in startNewChat:", error);
     return res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
+
 
 // ------------------ Search Chat ------------------
 exports.searchChat = async (req, res) => {
   try {
     // Read from query
     const { chatId, persona } = req.query;
-
+    console.log(chatId,persona)
     if (!chatId || !persona) {
       return res.status(400).json({ error: 'chatId and persona are required' });
     }
@@ -87,10 +154,20 @@ exports.searchChat = async (req, res) => {
     console.log("Formatted search results:", formattedResults);
 
     // 4. Save the insights to the chat in DB
-    await prisma.chat.update({
-      where: { chatId: Number(chatId) },
-      data: { insights: mergedText },
-    });
+   // 4. Save the insights to the chat in DB
+const chat = await prisma.chat.findUnique({
+  where: { chatId: Number(chatId) },
+});
+
+if (!chat) {
+  return res.status(404).json({ error: `Chat ${chatId} not found.` });
+}
+console.log("Trying to update the chat :",chatId)
+await prisma.chat.update({
+  where: { chatId: Number(chatId) },
+  data: { insights: mergedText, persona },
+});
+
 
     return res.status(200).json({
       chatId,
@@ -140,20 +217,20 @@ exports.deleteChat = async (req, res) => {
     });
 
     // 2. Delete local PDF files (if you are saving them in filesystem with fileName)
-    for (const pdf of pdfs) {
-      if (pdf.fileName) {
-        const filePath = path.join(__dirname, '../uploads', pdf.fileName);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log(`Deleted local file: ${filePath}`);
-        }
-      }
-    }
-
+    
     // 3. Delete from Postgres (cascade removes PDFs too)
-    await prisma.chat.delete({
-      where: { chatId: Number(chatId) },
-    });
+    // 3. Delete from Postgres (cascade removes PDFs too)
+const chat = await prisma.chat.findUnique({
+  where: { chatId: Number(chatId) },
+});
+
+if (!chat) {
+  return res.status(404).json({ error: `Chat ${chatId} not found.` });
+}
+
+await prisma.chat.delete({
+  where: { chatId: Number(chatId) },
+});
 
     // 4. Call FastAPI to delete from Pinecone
     await axios.delete(process.env.FAST_API_URL+'/delete-chat', {

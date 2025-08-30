@@ -1,12 +1,13 @@
 -- CreateTable
 CREATE TABLE "public"."User" (
-    "id" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "phoneNumber" TEXT,
     "userId" SERIAL NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT,
+    "name" TEXT,
+    "phoneNumber" TEXT,
+    "googleId" TEXT,
 
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "User_pkey" PRIMARY KEY ("userId")
 );
 
 -- CreateTable
@@ -15,6 +16,7 @@ CREATE TABLE "public"."Chat" (
     "userId" INTEGER NOT NULL,
     "persona" TEXT,
     "job" TEXT,
+    "insights" TEXT,
 
     CONSTRAINT "Chat_pkey" PRIMARY KEY ("chatId")
 );
@@ -24,15 +26,16 @@ CREATE TABLE "public"."Pdf" (
     "pdfId" SERIAL NOT NULL,
     "chatId" INTEGER NOT NULL,
     "pdf" BYTEA NOT NULL,
+    "fileName" TEXT,
 
     CONSTRAINT "Pdf_pkey" PRIMARY KEY ("pdfId")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_id_key" ON "public"."User"("id");
+CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_userId_key" ON "public"."User"("userId");
+CREATE UNIQUE INDEX "User_googleId_key" ON "public"."User"("googleId");
 
 -- AddForeignKey
 ALTER TABLE "public"."Chat" ADD CONSTRAINT "Chat_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("userId") ON DELETE CASCADE ON UPDATE CASCADE;

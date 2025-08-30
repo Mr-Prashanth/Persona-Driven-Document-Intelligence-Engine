@@ -41,18 +41,24 @@ export const History: React.FC = () => {
 
   const deleteSession = async (id: string) => {
   try {
-    // Call backend API
-    await axios.delete(api+`/chat/delete/${id}`, {
+    const curChatId = localStorage.getItem("chatId"); // ✅ use correct key
+
+    if (curChatId === id) {
+      localStorage.removeItem("chatId"); // ✅ remove if same
+    }
+
+    await axios.delete(api + `/chat/delete/${id}`, {
       withCredentials: true,
     });
 
     // Update UI state
-    setSessions(sessions.filter((s) => s.id !== id));
+    setSessions((prev) => prev.filter((s) => s.id !== id));
   } catch (err) {
     console.error("Error deleting session:", err);
     alert("Failed to delete session. Please try again.");
   }
 };
+
 
 
   const filteredSessions = sessions.filter(session =>

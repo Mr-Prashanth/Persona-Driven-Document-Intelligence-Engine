@@ -64,5 +64,3 @@ VectraPDF is a **full-stack platform** designed to bring intelligence to documen
 By **[Gokul Nishandh S T](https://github.com/Gokul-Nishandh)** and **[Prashanth Samkumar](https://github.com/Mr-Prashanth)**  
 
 
-## 📂 Project Structure
-

@@ -9,10 +9,10 @@ VectraPDF is a **full-stack platform** designed to bring intelligence to documen
 ## 👨‍💻 Done By
 
 - [@Gokul-Nishandh](https://github.com/Gokul-Nishandh)  
-  *Core architecture, frontend & API development*  
+  *Core architecture, frontend & API development , Backend logic, Prisma schema, DevOps integration*  
 
 - [@Mr-Prashanth](https://github.com/Mr-Prashanth)  
-  *Backend logic, Prisma schema, DevOps integration*  
+  *Rag service model and TTS integration*  
 
 ---
 

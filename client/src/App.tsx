@@ -15,7 +15,7 @@ import PDFPreview from "./pages/PDFPreview";
 import NotFound from "./pages/NotFound";
 import { UserProvider } from "./contexts/userContext";
 import { PDFsProvider } from "./contexts/pdfContext";
-import { OAuthSuccess } from "./pages/OAuthsuccess";
+import { OAuthSuccess } from "./pages/OAuthsuccess"
 const queryClient = new QueryClient();
 
 const App = () => (

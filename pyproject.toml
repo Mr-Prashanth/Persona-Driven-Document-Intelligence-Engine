@@ -5,16 +5,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+     "dotenv>=0.9.9",
     "fastapi>=0.116.1",
-    "load-dotenv>=0.1.0",
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.29",
+    "langchain-groq>=0.3.7",
     "pinecone>=7.3.0",
-    "pymupdf4llm>=0.0.27",
+    "pypdf>=6.0.0",
     "python-multipart>=0.0.20",
-    "ruff>=0.12.8",
+    "typing>=3.10.0.0",
+    "uuid>=1.30",
     "uvicorn>=0.35.0",
 ]
 
-[tool.uv.workspace]
-members = [
-    "backend",
-]
+

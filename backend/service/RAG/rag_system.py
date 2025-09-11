@@ -15,6 +15,9 @@ class RAGSystem:
         return self.retriever.invoke(text) 
 
     def generate(self, user_query: str, retrieved_texts: list[str]) -> str:
+        if not retrieved_texts:  # when no docs are found
+            return "No relevant information found"
+
         raw_text = "\n\n".join(retrieved_texts)
 
         prompt = f"""

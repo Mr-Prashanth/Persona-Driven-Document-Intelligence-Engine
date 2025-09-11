@@ -1,12 +1,26 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile, Form, Query
+from typing import List
+from RAG.vectordb import VectorDB, Retriever
+from RAG.rag_system import RAGSystem
+from dotenv import load_dotenv
 import shutil
 import os
-from typing import List
-from RAG.extractor import extract_chunks
-from RAG.pineDB import store_in_pinecone, delete_by_file, delete_chat, search_chat_auto
+
+load_dotenv()
+
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_ENV= os.getenv("PINECONE_ENV", "us-west1-gcp") 
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+
+db = VectorDB(
+    api_key=PINECONE_API_KEY,
+    index_name=PINECONE_INDEX_NAME,
+    environment=PINECONE_ENV
+)
+
 app = FastAPI()
 
-UPLOAD_DIR = "/tmp/uploaded_pdfs"
+UPLOAD_DIR = "uploaded_pdfs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def chunk_list(lst, size):
@@ -18,58 +32,34 @@ def chunk_list(lst, size):
 async def upload_pdfs(
     chat_id: str = Form(...),
     files: List[UploadFile] = File(...)
+    
 ):
+    
     try:
         all_chunks = []
         folder_path = os.path.join(UPLOAD_DIR, chat_id)
         os.makedirs(folder_path, exist_ok=True)
 
         saved_file_paths = []
-
         for file in files:
             file_path = os.path.join(folder_path, file.filename)
-            print(file_path)
-
-            # Save file
+            
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
-            file.file.close()   # 👈 close handle here
-
-            saved_file_paths.append(file_path)
-
-            print(f"Processing file: {file.filename}, size: {os.path.getsize(file_path)} bytes")
-
-            # Extract chunks
-            chunks = extract_chunks(file_path)
-            all_chunks.extend(chunks)
-
-        # Store in Pinecone
-        if all_chunks:
-            try:
-                for batch in chunk_list(all_chunks, 96):
-                    store_in_pinecone(batch, chat_id=chat_id)
-            except Exception as e:
-                print(f"Pinecone error: {e}")
-                raise HTTPException(status_code=500, detail=f"Pinecone error: {str(e)}")
-
-        # Cleanup
+            db.Add_file(file_path, chat_id=chat_id)
+        
+        # Clean up saved files
         for file_path in saved_file_paths:
-            try:
+            if os.path.exists(file_path):
                 os.remove(file_path)
-            except PermissionError:
-                print(f"Warning: could not delete {file_path}, file still in use.")
 
         return {
             "filenames": [f.filename for f in files],
             "total_chunks_processed": len(all_chunks),
             "message": "Files uploaded"
         }
-
     except Exception as e:
-        import traceback
-        print("Upload error:", str(e))
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -81,10 +71,33 @@ async def delete_file(
     try:
 
         # Delete vectors from Pinecone
-        delete_by_file(chat_id, filename)
+        db.delete_by_file(filename, chat_id)
 
         return {
             "message": f"Deleted file '{filename}' and associated vectors from chat '{chat_id}'"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/delete-files")
+async def delete_files(
+    chat_id: str = Query(..., description="Chat ID folder"),
+    filenames: List[str] = Query(..., description="List of filenames to delete")
+):
+    try:
+        results = []
+        for filename in filenames:
+            try:
+                # Delete vectors from Pinecone
+                db.delete_by_file(filename, chat_id)
+                results.append({"filename": filename, "status": "deleted"})
+            except Exception as e:
+                results.append({"filename": filename, "status": "error", "detail": str(e)})
+
+        return {
+            "message": f"Processed {len(filenames)} file(s) for chat '{chat_id}'",
+            "results": results
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -95,7 +108,7 @@ async def delete_chat_endpoint(
     chat_id: str = Query(..., description="Chat ID whose vectors should be deleted")
 ):
     try:
-        delete_chat(chat_id)
+        db.delete_chat(chat_id)
         return {
             "message": f"All vectors for chat_id '{chat_id}' deleted successfully."
         }
@@ -105,15 +118,17 @@ async def delete_chat_endpoint(
 @app.get("/search-chat")
 async def search_chat_endpoint(query: str, chat_id: str):
     try:
-        raw_results =  search_chat_auto(query, chat_id)
-        hits = raw_results.get("result", {}).get("hits", [])
-        texts = [
-            hit["fields"]["text"]
-            for hit in hits
-            if hit.get("_score", 0) >= 0.02 and "fields" in hit and "text" in hit["fields"]
-        ]
-        print("This is",texts)
-        return texts
+        
+        retriever = Retriever(db=db, chat_id=chat_id)
+        rag = RAGSystem(os.getenv("GROQ_API_KEY"), retriever)
+        docs = rag.retrieve(query)
+        text = []
+        for doc in docs:
+            text.append(
+                doc.page_content,
+            )
+        results = rag.generate(query, text)
+        return results
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

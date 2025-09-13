@@ -151,10 +151,14 @@ exports.searchChat = async (req, res) => {
     const searchResults = fastApiSearchResponse.data;
 
     // 2. Format results
-    const formattedResults = searchResults.map((text, idx) => ({
-      id: idx + 1,
-      text: text.replace(/\n+/g, "\n").trim(),
-    }));
+    const formattedResults = searchResults.map((item, idx) => {
+  const text = typeof item === "string" ? item : JSON.stringify(item);
+  return {
+    id: idx + 1,
+    text: text.replace(/\n+/g, "\n").trim(),
+  };
+});
+
 
     // 3. Merge all insights into a single text block
     const mergedText = formattedResults.map(r => r.text).join("\n\n");

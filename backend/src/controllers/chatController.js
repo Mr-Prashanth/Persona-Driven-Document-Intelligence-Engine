@@ -152,20 +152,23 @@ exports.searchChat = async (req, res) => {
 
     // 2. Format results
     const formattedResults = searchResults.map((item, idx) => {
-  const text = typeof item === "string" ? item : JSON.stringify(item);
+  let text = "";
+
+  try {
+    // FastAPI sends JSON string, so parse it
+    const parsed = typeof item === "string" ? JSON.parse(item) : item;
+    text = parsed.page_content || "";
+  } catch (err) {
+    console.error("Failed to parse search result:", item, err);
+    text = typeof item === "string" ? item : "";
+  }
+
   return {
     id: idx + 1,
     text: text.replace(/\n+/g, "\n").trim(),
   };
 });
 
-
-    // 3. Merge all insights into a single text block
-    const mergedText = formattedResults.map(r => r.text).join("\n\n");
-
-    console.log("Formatted search results:", formattedResults);
-
-    // 4. Save the insights to the chat in DB
    // 4. Save the insights to the chat in DB
 const chat = await prisma.chat.findUnique({
   where: { chatId: Number(chatId) },

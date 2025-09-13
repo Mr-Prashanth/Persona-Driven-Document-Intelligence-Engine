@@ -90,6 +90,7 @@ async def delete_files(
         for filename in filenames:
             try:
                 # Delete vectors from Pinecone
+                print("Deleting file",filename,chat_id)
                 db.delete_by_file(filename, chat_id)
                 results.append({"filename": filename, "status": "deleted"})
             except Exception as e:
@@ -108,6 +109,7 @@ async def delete_chat_endpoint(
     chat_id: str = Query(..., description="Chat ID whose vectors should be deleted")
 ):
     try:
+        print("Deleting chat",chat_id)
         db.delete_chat(chat_id)
         return {
             "message": f"All vectors for chat_id '{chat_id}' deleted successfully."
@@ -118,17 +120,18 @@ async def delete_chat_endpoint(
 @app.get("/search-chat")
 async def search_chat_endpoint(query: str, chat_id: str):
     try:
-        
         retriever = Retriever(db=db, chat_id=chat_id)
         rag = RAGSystem(os.getenv("GROQ_API_KEY"), retriever)
         docs = rag.retrieve(query)
-        text = []
-        for doc in docs:
-            text.append(
-                doc.page_content,
-            )
+        text = [doc.page_content for doc in docs]
         results = rag.generate(query, text)
+
+        # Ensure list response
+        if isinstance(results, str):
+            results = [results]
+
         return results
+
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

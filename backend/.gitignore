@@ -1,6 +1,14 @@
+# Environment files
+.env
+*.env
 backend/.env
 client/.env
-.env
-backend/.env
-client/.env
-.env
+
+# Dependencies
+**/node_modules/
+
+# Optional: logs, caches, and OS files
+*.log
+__pycache__/
+*.pyc
+.DS_Store

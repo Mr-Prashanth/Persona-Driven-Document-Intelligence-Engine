@@ -412,21 +412,30 @@ const triggerFileDialog = () => {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    {results.map((result, index) => (
-                      <motion.div 
-                        key={result.id} 
-                        initial={{ opacity: 0, y: 20 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        transition={{ duration: 0.4, delay: index * 0.1 }} 
-                        className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors"
-                      >
-                        <div className="flex justify-between items-start">
-                          <p className="text-vectra-text-primary text-sm leading-relaxed">{result.text}</p>
-                          <span className="text-xs text-vectra-text-secondary ml-3">{result.score?.toFixed(3)}</span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
+  {results.map((result, index) => (
+    <motion.div
+      key={result.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
+      className="p-4 bg-vectra-surface/30 rounded-lg border border-vectra-border/50 hover:border-primary/30 transition-colors"
+    >
+      <div className="flex flex-col space-y-2">
+        {result.text.split("\n").map((line, i) => (
+          <p key={i} className="text-vectra-text-primary text-sm leading-relaxed">
+            {line.trim()}
+          </p>
+        ))}
+        {result.score !== undefined && (
+          <span className="text-xs text-vectra-text-secondary mt-2">
+            Score: {result.score.toFixed(3)}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  ))}
+</div>
+
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-4">

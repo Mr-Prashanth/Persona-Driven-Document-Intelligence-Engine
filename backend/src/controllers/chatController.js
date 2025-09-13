@@ -36,26 +36,34 @@ exports.uploadPdf = async (req, res) => {
     const newFiles = req.files.map((file) => file.originalname);
 
     // ---------------- REMOVE OLD FILES ----------------
-    const filesToDelete = existingFiles.filter((f) => !newFiles.includes(f));
+const filesToDelete = existingFiles.filter((f) => !newFiles.includes(f));
 
-    if (filesToDelete.length > 0) {
-      // Remove from DB
-      await prisma.pdf.deleteMany({
-        where: {
-          chatId: chat.chatId,
-          fileName: { in: filesToDelete },
-        },
-      });
+if (filesToDelete.length > 0) {
+  // Remove from DB
+  await prisma.pdf.deleteMany({
+    where: {
+      chatId: chat.chatId,
+      fileName: { in: filesToDelete },
+    },
+  });
 
-      // Call FastAPI delete for each removed file
-      await Promise.all(
-        filesToDelete.map((filename) =>
-          axios.delete(process.env.FAST_API_URL + "/delete-file", {
-            params: { chat_id: chat.chatId, filename },
-          })
+  // 🔥 Batch delete instead of multiple API calls
+  await axios.delete(process.env.FAST_API_URL + "/delete-files", {
+    params: {
+      chat_id: chat.chatId,
+      filenames: filesToDelete, // <-- List of filenames
+    },
+    paramsSerializer: (params) => {
+      return Object.entries(params)
+        .map(([key, value]) =>
+          Array.isArray(value)
+            ? value.map((v) => `${key}=${encodeURIComponent(v)}`).join("&")
+            : `${key}=${encodeURIComponent(value)}`
         )
-      );
-    }
+        .join("&");
+    },
+  });
+}
 
     // ---------------- ADD NEW FILES ----------------
     const filesToAdd = req.files.filter(

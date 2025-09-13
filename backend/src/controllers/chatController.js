@@ -150,12 +150,11 @@ exports.searchChat = async (req, res) => {
 
     const searchResults = fastApiSearchResponse.data;
 
-    // 2. Format results
-    const formattedResults = searchResults.map((item, idx) => {
+   // 2. Format results
+const formattedResults = searchResults.map((item, idx) => {
   let text = "";
 
   try {
-    // FastAPI sends JSON string, so parse it
     const parsed = typeof item === "string" ? JSON.parse(item) : item;
     text = parsed.page_content || "";
   } catch (err) {
@@ -169,7 +168,10 @@ exports.searchChat = async (req, res) => {
   };
 });
 
-   // 4. Save the insights to the chat in DB
+// 🔥 Merge results into one string for saving
+const mergedText = formattedResults.map(r => r.text).join("\n\n");
+
+// 4. Save the insights to the chat in DB
 const chat = await prisma.chat.findUnique({
   where: { chatId: Number(chatId) },
 });
@@ -177,19 +179,20 @@ const chat = await prisma.chat.findUnique({
 if (!chat) {
   return res.status(404).json({ error: `Chat ${chatId} not found.` });
 }
-console.log("Trying to update the chat :",chatId)
+
+console.log("Trying to update the chat:", chatId);
+
 await prisma.chat.update({
   where: { chatId: Number(chatId) },
   data: { insights: mergedText, persona },
 });
 
-
-    return res.status(200).json({
-      chatId,
-      persona,
-      searchResults: formattedResults,
-      mergedText,
-    });
+return res.status(200).json({
+  chatId,
+  persona,
+  searchResults: formattedResults,
+  mergedText,
+});
 
   } catch (error) {
     console.error("Error in searchChat:", error);
